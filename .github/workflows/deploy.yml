@@ -17,18 +17,21 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            # Entrar a la carpeta del nuevo repo
+            # Entrar a la carpeta del repo
             cd ~/DulceMar-Ventas
             
             # Sincronizar código con GitHub
             git pull origin main
             
-            # Construir y levantar servicios
-            # Usamos build para asegurar que los cambios en el código se reflejen
+            # Automatizar el build de la PWA (Frontend)
+            # Esto genera la carpeta /dist actualizada que Nginx va a servir
+            docker run --rm -v $(pwd)/apps/web:/app -w /app node:20-slim sh -c "npm install && npx vite build"
+            
+            # Reconstruir y levantar servicios (Backend y Nginx)
             docker-compose -f docker-compose.prod.yml up -d --build
             
             # Ejecutar migraciones de base de datos para Supabase
             docker-compose -f docker-compose.prod.yml exec -T api npx prisma migrate deploy --schema ./src/prisma/schema.prisma
             
-            # Limpiar imágenes huérfanas para ahorrar espacio en la EC2
+            # Limpiar recursos huérfanos para ahorrar espacio
             docker image prune -f
