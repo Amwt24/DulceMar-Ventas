@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import axios from 'axios';
 import { useSalesStore } from './salesStore';
 
+// Forzamos que la API use el prefijo /api para Nginx
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+const api = axios.create({ baseURL: API_URL });
+
 interface Shift {
   id: string;
   status: 'OPEN' | 'CLOSED';
@@ -16,8 +20,6 @@ interface ShiftState {
   closeShift: (vendorName: string) => Promise<void>;
 }
 
-const api = axios.create({ baseURL: import.meta.env.VITE_API_URL });
-
 export const useShiftStore = create<ShiftState>((set) => ({
   currentShift: null,
   isLoading: true,
@@ -31,13 +33,11 @@ export const useShiftStore = create<ShiftState>((set) => ({
   },
   openShift: async (vendorName) => {
     const { data } = await api.post('/shifts/open', { vendorName });
-    // Limpiar ventas locales para empezar turno de 0
     useSalesStore.getState().clearSales();
     set({ currentShift: data });
   },
   closeShift: async (vendorName) => {
     await api.post('/shifts/close', { vendorName });
-    // Limpiar ventas locales al cerrar
     useSalesStore.getState().clearSales();
     set({ currentShift: null });
   }
