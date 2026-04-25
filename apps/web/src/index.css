@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --fresh-green: #10b981;
+  --dark-green: #064e3b;
+  --light-green: #ecfdf5;
+}
+
+@layer base {
+  body {
+    /* Fondo vibrante para el navegador, la app se centrará encima */
+    @apply bg-emerald-50 text-slate-900 antialiased select-none;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl;
+  }
+  
+  .app-container {
+    @apply min-h-screen bg-white shadow-2xl shadow-emerald-900/10 mx-auto w-full max-w-md relative overflow-x-hidden border-x border-emerald-100;
+  }
+  
+  .btn-price {
+    @apply flex flex-col items-center justify-center p-4 rounded-[2rem] border-2 border-emerald-50 bg-emerald-50/30 hover:border-emerald-500 hover:bg-emerald-50 active:scale-95 transition-all text-emerald-800;
+  }
+  
+  .btn-price-active {
+    @apply border-emerald-600 bg-emerald-600 text-white shadow-lg shadow-emerald-200;
+  }
+}
