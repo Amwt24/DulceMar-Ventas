@@ -61,3 +61,13 @@ model SaleItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model Shift {
+  id        String    @id @default(uuid())
+  status    String    @default("OPEN") // OPEN, CLOSED
+  openedAt  DateTime  @default(now())
+  closedAt  DateTime?
+  openedBy  String
+  closedBy  String?
+  totalSales Decimal  @default(0) @db.Decimal(10, 2)
+}

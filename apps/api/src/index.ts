@@ -1,11 +1,17 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
-import { rateLimit } from 'express-rate-limit';
-import { PrismaClient } from '@prisma/client';
+import * as dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config();
+// Forzar carga de .env desde la raíz de la API
+dotenv.config({ path: path.join(__dirname, '../.env') });
+
+import { PrismaClient } from '@prisma/client';
+import { getDailyReport } from './controllers/reportsController';
+import { createSale } from './controllers/salesController';
+import { getCurrentShift, openShift, closeShift } from './controllers/shiftController';
+import { getAllShifts, getShiftReport } from './controllers/shiftReportController';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -13,27 +19,29 @@ const port = process.env.PORT || 3000;
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  credentials: true
+}));
 app.use(express.json());
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
-});
-app.use(limiter);
+// API Routes
+app.get('/api/reports/daily', getDailyReport);
+app.get('/api/reports/shift/:shiftId', getShiftReport);
+app.post('/api/sales', createSale);
 
-// Health check
+// Rutas de Turnos
+app.get('/api/shifts', getAllShifts);
+app.get('/api/shifts/current', getCurrentShift);
+app.post('/api/shifts/open', openShift);
+app.post('/api/shifts/close', closeShift);
+
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date() });
+  res.json({ status: 'ok', database: !!process.env.DATABASE_URL });
 });
-
-// Routes placeholders
-app.use('/api/auth', (req, res) => res.json({ message: 'Auth route' }));
-app.use('/api/products', (req, res) => res.json({ message: 'Products route' }));
-app.use('/api/sales', (req, res) => res.json({ message: 'Sales route' }));
 
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`🚀 DulceMar API en puerto ${port}`);
 });
 
 export { prisma };
