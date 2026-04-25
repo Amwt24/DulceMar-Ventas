@@ -41,8 +41,16 @@ const Reports: React.FC = () => {
 
   useEffect(() => {
     if (isAdmin) {
-      // Cargar lista de turnos para el selector
-      api.get('/shifts').then(res => setShifts(res.data));
+      api.get('/shifts')
+        .then(res => {
+          // Aseguramos que recibimos un array antes de guardarlo
+          if (Array.isArray(res.data)) {
+            setShifts(res.data);
+          } else {
+            setShifts([]);
+          }
+        })
+        .catch(() => setShifts([]));
     }
   }, [isAdmin, currentShift]);
 
@@ -58,6 +66,7 @@ const Reports: React.FC = () => {
           setDisplayData(response.data);
         } catch (error) {
           console.error('Error fetching shift report:', error);
+          setDisplayData(null);
         } finally {
           setLoading(false);
         }
@@ -66,7 +75,6 @@ const Reports: React.FC = () => {
     }
   }, [selectedShiftId, isAdmin, todaySales]);
 
-  // Lógica para reporte de vendedor (Local - Solo turno actual)
   const getVendorReport = () => {
     const report: Record<string, ProductReport> = {};
     let total = 0;
@@ -103,7 +111,6 @@ const Reports: React.FC = () => {
         </div>
       </div>
 
-      {/* Selector de Turno (Admin Only) */}
       {isAdmin && (
         <div className="px-2">
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Seleccionar Turno</label>
@@ -114,7 +121,7 @@ const Reports: React.FC = () => {
               className="w-full bg-white border-2 border-emerald-50 rounded-2xl px-5 py-4 font-bold text-slate-700 appearance-none outline-none focus:border-emerald-500 shadow-sm transition-all"
             >
               <option value="current">Turno Actual (En vivo)</option>
-              {shifts.filter(s => s.id !== currentShift?.id).map(s => (
+              {Array.isArray(shifts) && shifts.filter(s => s.id !== currentShift?.id).map(s => (
                 <option key={s.id} value={s.id}>
                   {new Date(s.openedAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} | 
                   {new Date(s.openedAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} - 
@@ -127,7 +134,6 @@ const Reports: React.FC = () => {
         </div>
       )}
 
-      {/* Info del Turno Seleccionado */}
       <div className={`mx-2 p-4 rounded-3xl flex items-center gap-4 ${isAdmin ? 'bg-slate-800 text-white' : 'bg-emerald-50 text-emerald-700'}`}>
         <div className={`p-3 rounded-2xl ${isAdmin ? 'bg-white/10' : 'bg-emerald-100'}`}>
           {isAdmin ? <HistoryIcon size={20} /> : <User size={20} />}
@@ -142,7 +148,6 @@ const Reports: React.FC = () => {
         </div>
       </div>
 
-      {/* Card de Gran Total */}
       <div className={`mx-2 rounded-[2.5rem] p-8 text-white shadow-xl relative overflow-hidden ${isAdmin ? (selectedShiftId === 'current' ? 'bg-emerald-600' : 'bg-slate-900') : 'bg-emerald-600'}`}>
         <div className="absolute top-0 right-0 p-4 opacity-5">
           <BarChart3 size={120} />
@@ -154,7 +159,7 @@ const Reports: React.FC = () => {
           </h2>
           <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10">
             <TrendingUp size={14} />
-            {isAdmin && selectedShiftId !== 'current' ? 'Venta Finalizada' : 'Sincronizado'}
+            Sincronizado
           </div>
         </div>
       </div>
@@ -165,7 +170,7 @@ const Reports: React.FC = () => {
             <Users size={16} /> Por Vendedor
           </h3>
           <div className="grid gap-2">
-            {finalData.vendors.map((v, i) => (
+            {finalData.vendors.map((v: any, i: number) => (
               <div key={i} className="bg-white p-4 rounded-2xl border border-emerald-50 flex items-center justify-between shadow-sm">
                 <h4 className="font-black text-slate-700">{v.name}</h4>
                 <p className="font-black text-emerald-600 tracking-tighter">{formatCurrency(v.total)}</p>
@@ -178,20 +183,20 @@ const Reports: React.FC = () => {
       <section className="space-y-4 px-2 pb-6">
         <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest px-2">Detalle de Productos</h3>
         <div className="grid gap-3">
-          {finalData?.products.map((prod, index) => (
-            <div key={index} className="bg-white p-5 rounded-[2rem] border border-emerald-50 shadow-sm flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="bg-emerald-50 w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-inner">{prod.emoji}</div>
-                <div>
-                  <h4 className="font-black text-slate-800 text-lg leading-tight">{prod.name}</h4>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{prod.count} ventas</p>
+          {finalData?.products && finalData.products.length > 0 ? (
+            finalData.products.map((prod, index) => (
+              <div key={index} className="bg-white p-5 rounded-[2rem] border border-emerald-50 shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="bg-emerald-50 w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-inner">{prod.emoji}</div>
+                  <div>
+                    <h4 className="font-black text-slate-800 text-lg leading-tight">{prod.name}</h4>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{prod.count} ventas</p>
+                  </div>
                 </div>
+                <p className="text-xl font-black text-slate-800 tracking-tighter">{formatCurrency(prod.total)}</p>
               </div>
-              <p className="text-xl font-black text-slate-800 tracking-tighter">{formatCurrency(prod.total)}</p>
-            </div>
-          ))}
-          
-          {(!finalData?.products || finalData.products.length === 0) && (
+            ))
+          ) : (
             <div className="bg-white rounded-[2rem] p-10 text-center border border-dashed border-slate-200">
               <Package size={40} className="text-slate-200 mx-auto mb-3" />
               <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Sin ventas en este turno</p>
