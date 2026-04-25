@@ -10,14 +10,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy via SSH
+      - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            cd ~/DulceMar
+            # Entrar a la carpeta del nuevo repo
+            cd ~/DulceMar-Ventas
+            
+            # Sincronizar código con GitHub
             git pull origin main
-            docker-compose -f docker-compose.prod.yml build
-            docker-compose -f docker-compose.prod.yml up -d
+            
+            # Construir y levantar servicios
+            # Usamos build para asegurar que los cambios en el código se reflejen
+            docker-compose -f docker-compose.prod.yml up -d --build
+            
+            # Ejecutar migraciones de base de datos para Supabase
+            docker-compose -f docker-compose.prod.yml exec -T api npx prisma migrate deploy --schema ./src/prisma/schema.prisma
+            
+            # Limpiar imágenes huérfanas para ahorrar espacio en la EC2
+            docker image prune -f
