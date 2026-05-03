@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Fondo verde -->
+  <rect width="512" height="512" fill="#10b981" rx="80"/>
+  <!-- Banana -->
+  <path d="M160 200 Q180 160 220 155 Q260 150 270 180 Q280 210 250 230 Q220 250 190 240 Q160 230 160 200Z" fill="white"/>
+  <!-- Sandia -->
+  <ellipse cx="300" cy="330" rx="60" ry="45" fill="white"/>
+  <!-- Piña -->
+  <path d="M380 180 Q395 155 410 160 Q425 165 420 185 Q415 210 395 215 Q375 220 370 200 Q365 185 380 180Z" fill="white"/>
+  <!-- Naranja -->
+  <circle cx="200" cy="350" r="35" fill="white"/>
+</svg>

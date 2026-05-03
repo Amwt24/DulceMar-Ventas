@@ -66,3 +66,46 @@ export const createSale = async (req: Request, res: Response) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// GET /api/sales/my?shiftId=xxx&vendorName=xxx
+// Retorna las ventas de un vendedor en el turno indicado
+export const getMySales = async (req: Request, res: Response) => {
+  try {
+    const { shiftId, vendorName } = req.query as { shiftId?: string; vendorName?: string };
+
+    if (!vendorName) {
+      return res.status(400).json({ error: 'vendorName requerido' });
+    }
+
+    // Encontrar el shift para saber desde cuándo buscar
+    let shiftFilter: any = {};
+    if (shiftId) {
+      const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
+      if (shift) {
+        shiftFilter = { createdAt: { gte: shift.openedAt, ...(shift.closedAt ? { lte: shift.closedAt } : {}) } };
+      }
+    }
+
+    // Email del vendedor (misma lógica que createSale)
+    const userEmail = `${vendorName.toLowerCase().replace(/\s/g, '')}@dulcemar.com`;
+    const user = await prisma.user.findUnique({ where: { email: userEmail } });
+    if (!user) {
+      return res.json([]);
+    }
+
+    const sales = await prisma.sale.findMany({
+      where: { userId: user.id, ...shiftFilter },
+      include: {
+        items: {
+          include: { product: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(sales);
+  } catch (error: any) {
+    console.error('❌ Error en getMySales:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+};
