@@ -26,11 +26,13 @@ interface DailyData {
   shiftInfo?: any;
 }
 
+const ADMINS = ['amawta', 'mary'];
+
 const Reports: React.FC = () => {
   const vendorName = useAuthStore((state) => state.vendorName);
   const { todaySales } = useSalesStore();
   const { currentShift } = useShiftStore();
-  const isAdmin = vendorName?.toLowerCase() === 'amawta';
+  const isAdmin = ADMINS.includes(vendorName?.toLowerCase() || '');
 
   const [displayData, setDisplayData] = useState<DailyData | null>(null);
   const [loading, setLoading] = useState(isAdmin);
@@ -89,7 +91,7 @@ const Reports: React.FC = () => {
         report[id].count += 1;
       });
     });
-    return { grandTotal: total, products: Object.values(report).sort((a, b) => b.total - a.total) };
+    return { grandTotal: total, products: Object.values(report).sort((a, b) => b.total - a.total), vendors: undefined };
   };
 
   const finalData = isAdmin ? displayData : getVendorReport();

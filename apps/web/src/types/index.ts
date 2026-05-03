@@ -3,6 +3,8 @@ export interface Product {
   name: string;
   emoji: string;
   price: number;
+  presetPrices?: number[];  // Precios rápidos configurados por admin
+  sortOrder?: number;
   unit: string;
   categoryId: string;
 }

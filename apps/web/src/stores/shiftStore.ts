@@ -15,30 +15,60 @@ interface Shift {
 interface ShiftState {
   currentShift: Shift | null;
   isLoading: boolean;
+  pollingInterval: ReturnType<typeof setInterval> | null;
   fetchCurrentShift: () => Promise<void>;
   openShift: (vendorName: string) => Promise<void>;
   closeShift: (vendorName: string) => Promise<void>;
+  startPolling: () => void;
+  stopPolling: () => void;
 }
 
-export const useShiftStore = create<ShiftState>((set) => ({
+export const useShiftStore = create<ShiftState>((set, get) => ({
   currentShift: null,
   isLoading: true,
+  pollingInterval: null,
+
   fetchCurrentShift: async () => {
     try {
       const { data } = await api.get('/shifts/current');
+      // Si el turno cambió (abrió o cerró), sincronizar ventas
+      const prev = get().currentShift;
+      if (prev?.id !== data?.id) {
+        useSalesStore.getState().clearSales();
+      }
       set({ currentShift: data, isLoading: false });
     } catch {
       set({ isLoading: false });
     }
   },
+
   openShift: async (vendorName) => {
     const { data } = await api.post('/shifts/open', { vendorName });
     useSalesStore.getState().clearSales();
     set({ currentShift: data });
   },
+
   closeShift: async (vendorName) => {
     await api.post('/shifts/close', { vendorName });
     useSalesStore.getState().clearSales();
     set({ currentShift: null });
-  }
+  },
+
+  startPolling: () => {
+    const { pollingInterval, fetchCurrentShift } = get();
+    if (pollingInterval) return; // Ya hay polling activo
+    const interval = setInterval(() => {
+      fetchCurrentShift();
+    }, 30000); // Cada 30 segundos
+    set({ pollingInterval: interval });
+  },
+
+  stopPolling: () => {
+    const { pollingInterval } = get();
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      set({ pollingInterval: null });
+    }
+  },
 }));
+
