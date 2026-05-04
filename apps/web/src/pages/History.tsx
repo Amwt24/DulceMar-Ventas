@@ -16,7 +16,7 @@ const History: React.FC = () => {
   const { currentShift } = useShiftStore();
   const isAdmin = ADMINS.includes(vendorName?.toLowerCase() || '');
 
-  const [serverSales, setServerSales] = useState<Sale[]>([]);
+  const [serverSales, setServerSales] = useState<Sale[] | null>(null); // null = aún no cargó
   const [loading, setLoading] = useState(false);
 
   const fetchMySales = async () => {
@@ -38,15 +38,13 @@ const History: React.FC = () => {
     fetchMySales();
   }, [currentShift?.id, vendorName]);
 
-  // Mezclar ventas locales (inmediatas) con las del servidor, evitando duplicados
-  const allSales = React.useMemo(() => {
-    if (!serverSales.length) return todaySales;
-    const serverIds = new Set(serverSales.map((s) => s.id));
-    const localOnly = todaySales.filter((s) => !serverIds.has(s.id));
-    return [...localOnly, ...serverSales].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }, [todaySales, serverSales]);
+  // Estrategia:
+  // - Mientras el servidor no responde (serverSales === null): mostrar locales como preview
+  // - Una vez que el servidor responde: mostrar SOLO los del servidor (fuente de verdad)
+  //   para evitar duplicados (las ventas locales no tienen id asignado por el servidor)
+  const displaySales: Sale[] = serverSales !== null
+    ? serverSales
+    : todaySales;
 
   return (
     <div className="space-y-6">
@@ -70,7 +68,7 @@ const History: React.FC = () => {
         </div>
       </div>
 
-      {allSales.length === 0 ? (
+      {displaySales.length === 0 ? (
         <div className="bg-white rounded-[2.5rem] p-12 text-center border border-dashed border-slate-200">
           <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
             <ShoppingBag size={32} className="text-slate-300" />
@@ -79,9 +77,9 @@ const History: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-3">
-          {allSales.map((sale, index) => (
+          {displaySales.map((sale, index) => (
             <div
-              key={sale.id || index}
+              key={sale.id ?? `local-${index}`}
               className="bg-white p-5 rounded-[2rem] shadow-sm border border-emerald-50 flex items-center justify-between group active:scale-[0.98] transition-all"
             >
               <div className="flex items-center gap-4">

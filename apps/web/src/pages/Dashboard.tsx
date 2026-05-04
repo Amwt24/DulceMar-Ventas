@@ -4,7 +4,7 @@ import { useSalesStore } from '../stores/salesStore';
 import { useAuthStore } from '../stores/authStore';
 import { useShiftStore } from '../stores/shiftStore';
 import { formatCurrency } from '../utils/formatCurrency';
-import { ShoppingBag, Plus, User, ShieldCheck, Play, Square, AlertCircle } from 'lucide-react';
+import { ShoppingBag, Plus, User, ShieldCheck, Play, Square, AlertCircle, WifiOff } from 'lucide-react';
 import ProductCard from '../components/products/ProductCard';
 import SaleModal from '../components/products/SaleModal';
 import ProductModal from '../components/products/ProductModal';
@@ -14,7 +14,7 @@ const ADMINS = ['amawta', 'mary'];
 
 const Dashboard: React.FC = () => {
   const { products, fetchProducts, reorderProducts } = useProductStore();
-  const { todaySales } = useSalesStore();
+  const { todaySales, pendingSync, syncPending, isSyncing } = useSalesStore();
   const vendorName = useAuthStore((state) => state.vendorName);
   const isAdmin = ADMINS.includes(vendorName?.toLowerCase() || '');
 
@@ -24,15 +24,34 @@ const Dashboard: React.FC = () => {
   const [productToEdit, setProductToEdit] = useState<Product | undefined>(undefined);
   const [showProductModal, setShowProductModal] = useState(false);
 
-  // Drag & Drop state
+  // ── PC Drag & Drop state ─────────────────────────────────────────────
   const dragIdRef = useRef<string | null>(null);
   const [draggingOverId, setDraggingOverId] = useState<string | null>(null);
+
+  // ── Touch Drag state (móvil) ─────────────────────────────────────────
+  const touchSourceId = useRef<string | null>(null);
+  const [touchDraggingId, setTouchDraggingId] = useState<string | null>(null);
+  const [touchOverId, setTouchOverId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCurrentShift();
     fetchProducts();
     startPolling();
     return () => stopPolling();
+  }, []);
+
+  // Listener de conexión para sincronización automática offline
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log('🌐 Conexión recuperada. Sincronizando ventas pendientes...');
+      syncPending();
+    };
+    window.addEventListener('online', handleOnline);
+    // También intentar al montar si hay pendientes
+    if (pendingSync.length > 0 && navigator.onLine) {
+      syncPending();
+    }
+    return () => window.removeEventListener('online', handleOnline);
   }, []);
 
   // Refrescar productos cuando cambia el turno
@@ -43,7 +62,7 @@ const Dashboard: React.FC = () => {
   const totalToday = todaySales.reduce((acc, sale) => acc + sale.total, 0);
   const salesCount = todaySales.length;
 
-  // ── Drag & Drop handlers (solo para admin) ──────────────────────────
+  // ── PC Drag & Drop handlers (solo para admin) ────────────────────────
   const handleDragStart = (e: React.DragEvent, productId: string) => {
     dragIdRef.current = productId;
     e.dataTransfer.effectAllowed = 'move';
@@ -64,19 +83,7 @@ const Dashboard: React.FC = () => {
       setDraggingOverId(null);
       return;
     }
-
-    const currentIds = products.map((p) => p.id);
-    const sourceIndex = currentIds.indexOf(sourceId);
-    const targetIndex = currentIds.indexOf(targetId);
-
-    if (sourceIndex === -1 || targetIndex === -1) return;
-
-    // Reorganizar: sacar el origen e insertarlo en la posición del destino
-    const newIds = [...currentIds];
-    newIds.splice(sourceIndex, 1);
-    newIds.splice(targetIndex, 0, sourceId);
-
-    reorderProducts(newIds);
+    applyReorder(sourceId, targetId);
     dragIdRef.current = null;
     setDraggingOverId(null);
   };
@@ -85,7 +92,42 @@ const Dashboard: React.FC = () => {
     dragIdRef.current = null;
     setDraggingOverId(null);
   };
-  // ────────────────────────────────────────────────────────────────────
+
+  // ── Touch Drag handlers (móvil) ──────────────────────────────────────
+  const handleTouchReorderStart = (productId: string) => {
+    touchSourceId.current = productId;
+    setTouchDraggingId(productId);
+  };
+
+  const handleTouchReorderOver = (targetId: string) => {
+    if (touchSourceId.current && targetId !== touchSourceId.current) {
+      setTouchOverId(targetId);
+    }
+  };
+
+  const handleTouchReorderEnd = () => {
+    const sourceId = touchSourceId.current;
+    const targetId = touchOverId;
+    if (sourceId && targetId && sourceId !== targetId) {
+      applyReorder(sourceId, targetId);
+    }
+    touchSourceId.current = null;
+    setTouchDraggingId(null);
+    setTouchOverId(null);
+  };
+
+  // ── Lógica de reorden compartida ─────────────────────────────────────
+  const applyReorder = (sourceId: string, targetId: string) => {
+    const currentIds = products.map((p) => p.id);
+    const sourceIndex = currentIds.indexOf(sourceId);
+    const targetIndex = currentIds.indexOf(targetId);
+    if (sourceIndex === -1 || targetIndex === -1) return;
+
+    const newIds = [...currentIds];
+    newIds.splice(sourceIndex, 1);
+    newIds.splice(targetIndex, 0, sourceId);
+    reorderProducts(newIds);
+  };
 
   if (loadingShift) return (
     <div className="h-64 flex items-center justify-center">
@@ -143,9 +185,20 @@ const Dashboard: React.FC = () => {
             <div className="relative z-10">
               <p className="text-emerald-100 text-xs font-bold uppercase tracking-[0.2em] mb-1">Recaudado</p>
               <h2 className="text-5xl font-black mb-6 tracking-tighter">{formatCurrency(totalToday)}</h2>
-              <div className="bg-white/20 backdrop-blur-md px-5 py-2.5 rounded-2xl inline-flex items-center gap-2">
-                <ShoppingBag size={18} className="text-emerald-100" />
-                <span className="text-sm font-black">{salesCount} Ventas</span>
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="bg-white/20 backdrop-blur-md px-5 py-2.5 rounded-2xl inline-flex items-center gap-2">
+                  <ShoppingBag size={18} className="text-emerald-100" />
+                  <span className="text-sm font-black">{salesCount} Ventas</span>
+                </div>
+                {/* Badge de ventas pendientes de sync */}
+                {pendingSync.length > 0 && (
+                  <div className="bg-amber-400/90 backdrop-blur-md px-4 py-2.5 rounded-2xl inline-flex items-center gap-2 animate-pulse">
+                    <WifiOff size={15} className="text-amber-900" />
+                    <span className="text-xs font-black text-amber-900">
+                      {isSyncing ? 'Sincronizando...' : `${pendingSync.length} pendiente${pendingSync.length > 1 ? 's' : ''}`}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -156,7 +209,7 @@ const Dashboard: React.FC = () => {
               <div>
                 <h2 className="text-2xl font-black text-slate-800 tracking-tighter uppercase">Productos</h2>
                 {isAdmin && (
-                  <p className="text-[10px] font-bold text-slate-400 mt-0.5">Arrastra para reordenar</p>
+                  <p className="text-[10px] font-bold text-slate-400 mt-0.5">Mantén ⠿ pulsado para reordenar</p>
                 )}
               </div>
               {isAdmin && (
@@ -176,13 +229,18 @@ const Dashboard: React.FC = () => {
                   product={product}
                   onClick={() => setSelectedProduct(product)}
                   onEdit={() => { setProductToEdit(product); setShowProductModal(true); }}
-                  // Drag & drop solo para admin
+                  // PC Drag & drop
                   draggable={isAdmin}
                   onDragStart={(e) => handleDragStart(e, product.id)}
                   onDragOver={(e) => handleDragOver(e, product.id)}
                   onDrop={(e) => handleDrop(e, product.id)}
                   onDragEnd={handleDragEnd}
                   isDraggingOver={draggingOverId === product.id}
+                  // Móvil touch reorder
+                  onTouchReorderStart={handleTouchReorderStart}
+                  onTouchReorderOver={handleTouchReorderOver}
+                  onTouchReorderEnd={handleTouchReorderEnd}
+                  isTouchDragging={touchDraggingId === product.id || touchOverId === product.id}
                 />
               ))}
             </div>
