@@ -11,15 +11,13 @@ interface SaleModalProps {
   onClose: () => void;
 }
 
-// Fallback de precios si el producto no tiene presets configurados
-const DEFAULT_PRESETS = [0.5, 1.0, 1.5, 2.0];
-
 const SaleModal: React.FC<SaleModalProps> = ({ product, onClose }) => {
-  // Usar presetPrices del producto si existen, sino los defaults
+  // Usar presetPrices del producto si existen,
+  // sino usar el precio base del producto como único botón
   const presetPrices: number[] =
     product.presetPrices && product.presetPrices.length > 0
       ? product.presetPrices
-      : DEFAULT_PRESETS;
+      : [product.price];
 
   const defaultPrice = presetPrices[0]; // El primero es el default
 

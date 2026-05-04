@@ -31,9 +31,10 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
   fetchCurrentShift: async () => {
     try {
       const { data } = await api.get('/shifts/current');
-      // Si el turno cambió (abrió o cerró), sincronizar ventas
       const prev = get().currentShift;
-      if (prev?.id !== data?.id) {
+      // Solo limpiar ventas si había un turno previo Y el turno realmente cambió.
+      // Si prev es null (recarga de página), NO limpiar: las ventas del localStorage son válidas.
+      if (prev !== null && prev?.id !== data?.id) {
         useSalesStore.getState().clearSales();
       }
       set({ currentShift: data, isLoading: false });
